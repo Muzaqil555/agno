@@ -1146,6 +1146,11 @@ class Workspace(Toolkit):
                 await proc.wait()
                 log_warning(f"arun_command timed out after {timeout}s: {args}")
                 return f"Error: command timed out after {timeout} seconds"
+            except asyncio.CancelledError:
+                if proc.returncode is None:
+                    proc.kill()
+                await proc.wait()
+                raise
             stdout = stdout_b.decode("utf-8", errors="replace") if stdout_b else ""
             stderr = stderr_b.decode("utf-8", errors="replace") if stderr_b else ""
             if proc.returncode != 0:

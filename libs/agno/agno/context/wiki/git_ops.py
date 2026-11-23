@@ -135,6 +135,11 @@ async def run(
             -1,
             f"git {' '.join(safe_args)} timed out after {timeout}s",
         ) from None
+    except asyncio.CancelledError:
+        if proc.returncode is None:
+            proc.kill()
+        await proc.wait()
+        raise
 
     stdout = (stdout_b or b"").decode("utf-8", errors="replace")
     stderr = (stderr_b or b"").decode("utf-8", errors="replace")

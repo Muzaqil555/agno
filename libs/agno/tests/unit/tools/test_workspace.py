@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -1753,3 +1754,20 @@ def test_arun_command_zero_tail_returns_empty():
             )
         )
         assert out == ""
+
+
+async def test_async_run_command_cancelled_stops_the_command(tmp_path):
+    """Cancelling the agent run must not leave the command running in the background."""
+    pid_file = tmp_path / "cmd.pid"
+    script = f"import os, time; open({str(pid_file)!r}, 'w').write(str(os.getpid())); time.sleep(30)"
+    ws = Workspace(str(tmp_path))
+    task = asyncio.ensure_future(ws.arun_command([sys.executable, "-c", script], timeout=60))
+    for _ in range(100):
+        if pid_file.exists() and pid_file.read_text():
+            break
+        await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    with pytest.raises(ProcessLookupError):
+        os.kill(int(pid_file.read_text()), 0)
